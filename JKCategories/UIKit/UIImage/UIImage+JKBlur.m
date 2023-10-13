@@ -115,11 +115,8 @@
         useOpaqueContext = YES;
     else
         useOpaqueContext = NO;
-    UIGraphicsBeginImageContextWithOptions(outputImageRectInPoints.size, useOpaqueContext, inputImageScale);
-    CGContextRef outputContext = UIGraphicsGetCurrentContext();
-    CGContextScaleCTM(outputContext, 1.0, -1.0);
-    CGContextTranslateCTM(outputContext, 0, -outputImageRectInPoints.size.height);
     
+    // Output image is ready.
     if (hasBlur || hasSaturationChange)
     {
         vImage_Buffer effectInBuffer;
@@ -144,104 +141,128 @@
         if (e != kvImageNoError)
         {
             NSLog(@"*** error: vImageBuffer_InitWithCGImage returned error code %zi for inputImage: %@", e, self);
-            UIGraphicsEndImageContext();
             return nil;
         }
+       
+    }
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = inputImageScale;
+    rendererFormat.opaque = useOpaqueContext;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:outputImageRectInPoints.size format:rendererFormat];
+    UIImage *outputImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef outputContext = rendererContext.CGContext;
+        CGContextScaleCTM(outputContext, 1.0, -1.0);
+        CGContextTranslateCTM(outputContext, 0, -outputImageRectInPoints.size.height);
         
-        vImageBuffer_Init(&scratchBuffer1, effectInBuffer.height, effectInBuffer.width, format.bitsPerPixel, kvImageNoFlags);
-        inputBuffer = &effectInBuffer;
-        outputBuffer = &scratchBuffer1;
-        
-#if ENABLE_BLUR
-        if (hasBlur)
+        if (hasBlur || hasSaturationChange)
         {
-            CGFloat radiusX = [self jk_gaussianBlurRadiusWithBlurRadius:blurSize.width * inputImageScale];
-            CGFloat radiusY = [self jk_gaussianBlurRadiusWithBlurRadius:blurSize.height * inputImageScale];
+            vImage_Buffer effectInBuffer;
+            vImage_Buffer scratchBuffer1;
             
-            NSInteger tempBufferSize = vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, NULL, 0, 0, radiusY, radiusX, NULL, kvImageGetTempBufferSize | kvImageEdgeExtend);
-            void *tempBuffer = malloc(tempBufferSize);
+            vImage_Buffer *inputBuffer;
+            vImage_Buffer *outputBuffer;
             
-            vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
-            vImageBoxConvolve_ARGB8888(outputBuffer, inputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
-            vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
-            
-            free(tempBuffer);
-            
-            vImage_Buffer *temp = inputBuffer;
-            inputBuffer = outputBuffer;
-            outputBuffer = temp;
-        }
-#endif
-        
-#if ENABLE_SATURATION_ADJUSTMENT
-        if (hasSaturationChange)
-        {
-            CGFloat s = saturationDeltaFactor;
-            // These values appear in the W3C Filter Effects spec:
-            // https://dvcs.w3.org/hg/FXTF/raw-file/default/filters/index.html#grayscaleEquivalent
-            //
-            CGFloat floatingPointSaturationMatrix[] = {
-                0.0722 + 0.9278 * s,  0.0722 - 0.0722 * s,  0.0722 - 0.0722 * s,  0,
-                0.7152 - 0.7152 * s,  0.7152 + 0.2848 * s,  0.7152 - 0.7152 * s,  0,
-                0.2126 - 0.2126 * s,  0.2126 - 0.2126 * s,  0.2126 + 0.7873 * s,  0,
-                0,                    0,                    0,                    1,
+            vImage_CGImageFormat format = {
+                .bitsPerComponent = 8,
+                .bitsPerPixel = 32,
+                .colorSpace = NULL,
+                // (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little)
+                // requests a BGRA buffer.
+                .bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little,
+                .version = 0,
+                .decode = NULL,
+                .renderingIntent = kCGRenderingIntentDefault
             };
-            const int32_t divisor = 256;
-            NSUInteger matrixSize = sizeof(floatingPointSaturationMatrix)/sizeof(floatingPointSaturationMatrix[0]);
-            int16_t saturationMatrix[matrixSize];
-            for (NSUInteger i = 0; i < matrixSize; ++i) {
-                saturationMatrix[i] = (int16_t)roundf(floatingPointSaturationMatrix[i] * divisor);
-            }
-            vImageMatrixMultiply_ARGB8888(inputBuffer, outputBuffer, saturationMatrix, divisor, NULL, NULL, kvImageNoFlags);
+            vImageBuffer_Init(&scratchBuffer1, effectInBuffer.height, effectInBuffer.width, format.bitsPerPixel, kvImageNoFlags);
+            inputBuffer = &effectInBuffer;
+            outputBuffer = &scratchBuffer1;
             
-            vImage_Buffer *temp = inputBuffer;
-            inputBuffer = outputBuffer;
-            outputBuffer = temp;
+    #if ENABLE_BLUR
+            if (hasBlur)
+            {
+                CGFloat radiusX = [self jk_gaussianBlurRadiusWithBlurRadius:blurSize.width * inputImageScale];
+                CGFloat radiusY = [self jk_gaussianBlurRadiusWithBlurRadius:blurSize.height * inputImageScale];
+                
+                NSInteger tempBufferSize = vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, NULL, 0, 0, radiusY, radiusX, NULL, kvImageGetTempBufferSize | kvImageEdgeExtend);
+                void *tempBuffer = malloc(tempBufferSize);
+                
+                vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
+                vImageBoxConvolve_ARGB8888(outputBuffer, inputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
+                vImageBoxConvolve_ARGB8888(inputBuffer, outputBuffer, tempBuffer, 0, 0, radiusY, radiusX, NULL, kvImageEdgeExtend);
+                
+                free(tempBuffer);
+                
+                vImage_Buffer *temp = inputBuffer;
+                inputBuffer = outputBuffer;
+                outputBuffer = temp;
+            }
+    #endif
+            
+    #if ENABLE_SATURATION_ADJUSTMENT
+            if (hasSaturationChange)
+            {
+                CGFloat s = saturationDeltaFactor;
+                // These values appear in the W3C Filter Effects spec:
+                // https://dvcs.w3.org/hg/FXTF/raw-file/default/filters/index.html#grayscaleEquivalent
+                //
+                CGFloat floatingPointSaturationMatrix[] = {
+                    0.0722 + 0.9278 * s,  0.0722 - 0.0722 * s,  0.0722 - 0.0722 * s,  0,
+                    0.7152 - 0.7152 * s,  0.7152 + 0.2848 * s,  0.7152 - 0.7152 * s,  0,
+                    0.2126 - 0.2126 * s,  0.2126 - 0.2126 * s,  0.2126 + 0.7873 * s,  0,
+                    0,                    0,                    0,                    1,
+                };
+                const int32_t divisor = 256;
+                NSUInteger matrixSize = sizeof(floatingPointSaturationMatrix)/sizeof(floatingPointSaturationMatrix[0]);
+                int16_t saturationMatrix[matrixSize];
+                for (NSUInteger i = 0; i < matrixSize; ++i) {
+                    saturationMatrix[i] = (int16_t)roundf(floatingPointSaturationMatrix[i] * divisor);
+                }
+                vImageMatrixMultiply_ARGB8888(inputBuffer, outputBuffer, saturationMatrix, divisor, NULL, NULL, kvImageNoFlags);
+                
+                vImage_Buffer *temp = inputBuffer;
+                inputBuffer = outputBuffer;
+                outputBuffer = temp;
+            }
+    #endif
+            
+            CGImageRef effectCGImage;
+            if ( (effectCGImage = vImageCreateCGImageFromBuffer(inputBuffer, &format, &jk_cleanupBuffer, NULL, kvImageNoAllocate, NULL)) == NULL ) {
+                effectCGImage = vImageCreateCGImageFromBuffer(inputBuffer, &format, NULL, NULL, kvImageNoFlags, NULL);
+                free(inputBuffer->data);
+            }
+            if (maskImage) {
+                // Only need to draw the base image if the effect image will be masked.
+                CGContextDrawImage(outputContext, outputImageRectInPoints, inputCGImage);
+            }
+            
+            // draw effect image
+            CGContextSaveGState(outputContext);
+            if (maskImage)
+                CGContextClipToMask(outputContext, outputImageRectInPoints, maskImage.CGImage);
+            CGContextDrawImage(outputContext, outputImageRectInPoints, effectCGImage);
+            CGContextRestoreGState(outputContext);
+            
+            // Cleanup
+            CGImageRelease(effectCGImage);
+            free(outputBuffer->data);
         }
-#endif
-        
-        CGImageRef effectCGImage;
-        if ( (effectCGImage = vImageCreateCGImageFromBuffer(inputBuffer, &format, &jk_cleanupBuffer, NULL, kvImageNoAllocate, NULL)) == NULL ) {
-            effectCGImage = vImageCreateCGImageFromBuffer(inputBuffer, &format, NULL, NULL, kvImageNoFlags, NULL);
-            free(inputBuffer->data);
-        }
-        if (maskImage) {
-            // Only need to draw the base image if the effect image will be masked.
+        else
+        {
+            // draw base image
             CGContextDrawImage(outputContext, outputImageRectInPoints, inputCGImage);
         }
         
-        // draw effect image
-        CGContextSaveGState(outputContext);
-        if (maskImage)
-            CGContextClipToMask(outputContext, outputImageRectInPoints, maskImage.CGImage);
-        CGContextDrawImage(outputContext, outputImageRectInPoints, effectCGImage);
-        CGContextRestoreGState(outputContext);
-        
-        // Cleanup
-        CGImageRelease(effectCGImage);
-        free(outputBuffer->data);
-    }
-    else
-    {
-        // draw base image
-        CGContextDrawImage(outputContext, outputImageRectInPoints, inputCGImage);
-    }
-    
-#if ENABLE_TINT
-    // Add in color tint.
-    if (tintColor)
-    {
-        CGContextSaveGState(outputContext);
-        CGContextSetFillColorWithColor(outputContext, tintColor.CGColor);
-        CGContextFillRect(outputContext, outputImageRectInPoints);
-        CGContextRestoreGState(outputContext);
-    }
-#endif
-    
-    // Output image is ready.
-    UIImage *outputImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    
+    #if ENABLE_TINT
+        // Add in color tint.
+        if (tintColor)
+        {
+            CGContextSaveGState(outputContext);
+            CGContextSetFillColorWithColor(outputContext, tintColor.CGColor);
+            CGContextFillRect(outputContext, outputImageRectInPoints);
+            CGContextRestoreGState(outputContext);
+        }
+    #endif
+    }];
     return outputImage;
 #undef ENABLE_BLUR
 #undef ENABLE_SATURATION_ADJUSTMENT

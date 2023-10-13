@@ -89,11 +89,14 @@ static CIDetector * _jk_faceDetector;
     imageRect.origin.y = MIN(0.0, MAX(-facesRect.origin.y + self.frame.size.height/2.0 -facesRect.size.height/2.0, -imageRect.size.height + self.frame.size.height));
     
     imageRect = CGRectIntegral(imageRect);
-    
-    UIGraphicsBeginImageContextWithOptions(imageRect.size, YES, 2.0);
-    [self.image drawInRect:imageRect];
-    UIImage* newImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = 2.0;
+    rendererFormat.opaque = YES;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:imageRect.size format:rendererFormat];
+    UIImage* newImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        [self.image drawInRect:imageRect];
+    }];
 
     self.image = newImage;
     

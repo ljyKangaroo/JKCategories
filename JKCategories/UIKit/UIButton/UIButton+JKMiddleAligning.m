@@ -16,17 +16,16 @@
 
 - (UIImage *)jk_MiddleAlignedButtonImageScaleToSize:(CGSize)size
 {
-    UIGraphicsBeginImageContextWithOptions(size, NO, 0);
-
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextTranslateCTM(context, 0.0, size.height);
-    CGContextScaleCTM(context, 1.0, -1.0);
-    CGContextDrawImage(context, CGRectMake(0.0f, 0.0f, size.width, size.height), self.CGImage);
-
-    UIImage *scaledImage = UIGraphicsGetImageFromCurrentImageContext();
-
-    UIGraphicsEndImageContext();
-
+    if (size.width<= 0 || size.height<=0) {
+        return nil;
+    }
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
+    UIImage *scaledImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        CGContextTranslateCTM(context, 0.0, size.height);
+        CGContextScaleCTM(context, 1.0, -1.0);
+        CGContextDrawImage(context, CGRectMake(0.0f, 0.0f, size.width, size.height), self.CGImage);
+    }];
     return scaledImage;
 }
 

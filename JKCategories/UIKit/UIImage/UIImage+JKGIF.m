@@ -141,16 +141,14 @@
 
     NSMutableArray *scaledImages = [NSMutableArray array];
 
-    UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
-
     for (UIImage *image in self.images) {
-        [image drawInRect:CGRectMake(thumbnailPoint.x, thumbnailPoint.y, scaledSize.width, scaledSize.height)];
-        UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
-
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
+        UIImage *newImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+            [image drawInRect:CGRectMake(thumbnailPoint.x, thumbnailPoint.y, scaledSize.width, scaledSize.height)];
+        }];
         [scaledImages addObject:newImage];
     }
 
-    UIGraphicsEndImageContext();
 
     return [UIImage animatedImageWithImages:scaledImages duration:self.duration];
 }

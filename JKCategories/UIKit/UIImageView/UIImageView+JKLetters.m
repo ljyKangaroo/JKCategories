@@ -145,42 +145,40 @@ static const CGFloat jk_FontResizingProportion = 0.42f;
         size.width = floorf(size.width * scale) / scale;
         size.height = floorf(size.height * scale) / scale;
     }
-    
-    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
-    
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    
-    if (isCircular) {
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = scale;
+    rendererFormat.opaque = NO;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size format:rendererFormat];
+    UIImage *snapshot = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        if (isCircular) {
+            //
+            // Clip context to a circle
+            //
+            CGPathRef path = CGPathCreateWithEllipseInRect(self.bounds, NULL);
+            CGContextAddPath(context, path);
+            CGContextClip(context);
+            CGPathRelease(path);
+        }
+        
         //
-        // Clip context to a circle
+        // Fill background of context
         //
-        CGPathRef path = CGPathCreateWithEllipseInRect(self.bounds, NULL);
-        CGContextAddPath(context, path);
-        CGContextClip(context);
-        CGPathRelease(path);
-    }
-    
-    //
-    // Fill background of context
-    //
-    CGContextSetFillColorWithColor(context, color.CGColor);
-    CGContextFillRect(context, CGRectMake(0, 0, size.width, size.height));
-    
-    //
-    // Draw text in the context
-    //
-    CGSize textSize = [text sizeWithAttributes:textAttributes];
-    CGRect bounds = self.bounds;
-    
-    [text drawInRect:CGRectMake(bounds.size.width/2 - textSize.width/2,
-                                bounds.size.height/2 - textSize.height/2,
-                                textSize.width,
-                                textSize.height)
-      withAttributes:textAttributes];
-    
-    UIImage *snapshot = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    
+        CGContextSetFillColorWithColor(context, color.CGColor);
+        CGContextFillRect(context, CGRectMake(0, 0, size.width, size.height));
+        
+        //
+        // Draw text in the context
+        //
+        CGSize textSize = [text sizeWithAttributes:textAttributes];
+        CGRect bounds = self.bounds;
+        
+        [text drawInRect:CGRectMake(bounds.size.width/2 - textSize.width/2,
+                                    bounds.size.height/2 - textSize.height/2,
+                                    textSize.width,
+                                    textSize.height)
+          withAttributes:textAttributes];
+    }];
     return snapshot;
 }
 

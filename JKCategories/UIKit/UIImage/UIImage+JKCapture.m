@@ -18,16 +18,13 @@
  */
 + (UIImage *)jk_captureWithView:(UIView *)view
 {
-    UIGraphicsBeginImageContextWithOptions(view.bounds.size, view.opaque, [UIScreen mainScreen].scale);
-    // IOS7及其后续版本
-    if ([view respondsToSelector:@selector(drawViewHierarchyInRect:afterScreenUpdates:)]) {
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale =  [UIScreen mainScreen].scale;
+    rendererFormat.opaque = view.opaque;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:view.bounds.size format:rendererFormat];
+    UIImage *screenshot = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
         [view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];
-    } else { // IOS7之前的版本
-        [view.layer renderInContext:UIGraphicsGetCurrentContext()];
-    }
-    
-    UIImage *screenshot = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    }];
     return screenshot;
 }
 
@@ -40,12 +37,13 @@
     CGSize size;
     size.width = CGRectGetWidth(myImageRect);
     size.height = CGRectGetHeight(myImageRect);
-    UIGraphicsBeginImageContext(size);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextDrawImage(context, myImageRect, subImageRef);
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
+    [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        CGContextDrawImage(context, myImageRect, subImageRef);
+    }];
     UIImage* smallImage = [UIImage imageWithCGImage:subImageRef];
     CGImageRelease(subImageRef);
-    UIGraphicsEndImageContext();
     return smallImage;
 }
 
@@ -77,26 +75,20 @@
     CGRect actureBounds= aView.bounds;//CGRectApplyAffineTransform();
     
     //begin
-    UIGraphicsBeginImageContextWithOptions(actureFrame.size, NO, 0.0);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextSaveGState(context);
-    //    CGContextScaleCTM(UIGraphicsGetCurrentContext(), 1, -1);
-    CGContextTranslateCTM(context,actureFrame.size.width/2, actureFrame.size.height/2);
-    CGContextConcatCTM(context, aView.transform);
-    CGPoint anchorPoint = aView.layer.anchorPoint;
-    CGContextTranslateCTM(context,
-                          -actureBounds.size.width * anchorPoint.x,
-                          -actureBounds.size.height * anchorPoint.y);
-    if([aView respondsToSelector:@selector(drawViewHierarchyInRect:afterScreenUpdates:)])
-    {
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:actureFrame.size];
+    UIImage *screenshot = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        CGContextSaveGState(context);
+        //    CGContextScaleCTM(UIGraphicsGetCurrentContext(), 1, -1);
+        CGContextTranslateCTM(context,actureFrame.size.width/2, actureFrame.size.height/2);
+        CGContextConcatCTM(context, aView.transform);
+        CGPoint anchorPoint = aView.layer.anchorPoint;
+        CGContextTranslateCTM(context,
+                              -actureBounds.size.width * anchorPoint.x,
+                              -actureBounds.size.height * anchorPoint.y);
         [aView drawViewHierarchyInRect:aView.bounds afterScreenUpdates:NO];
-    }
-    else
-    {
-        [aView.layer renderInContext:UIGraphicsGetCurrentContext()];
-    }
-    UIImage *screenshot = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+
+    }];
     //end
     aView.transform = oldTransform;
     

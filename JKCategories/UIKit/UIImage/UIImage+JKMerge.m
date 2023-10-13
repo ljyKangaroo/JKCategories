@@ -25,11 +25,11 @@
     CGFloat secondWidth = CGImageGetWidth(secondImageRef);
     CGFloat secondHeight = CGImageGetHeight(secondImageRef);
     CGSize mergedSize = CGSizeMake(MAX(firstWidth, secondWidth), MAX(firstHeight, secondHeight));
-    UIGraphicsBeginImageContext(mergedSize);
-    [firstImage drawInRect:CGRectMake(0, 0, firstWidth, firstHeight)];
-    [secondImage drawInRect:CGRectMake(0, 0, secondWidth, secondHeight)];
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:mergedSize];
+    UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        [firstImage drawInRect:CGRectMake(0, 0, firstWidth, firstHeight)];
+        [secondImage drawInRect:CGRectMake(0, 0, secondWidth, secondHeight)];
+    }];
     return image;
 }
 @end

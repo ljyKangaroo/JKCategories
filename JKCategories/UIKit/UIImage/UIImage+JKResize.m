@@ -77,10 +77,13 @@
 
 - (UIImage *)jk_resizedImage:(CGSize)newSize
 {
-	UIGraphicsBeginImageContextWithOptions(newSize, NO, UIScreen.mainScreen.scale);
-	[self drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
-	UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
-	UIGraphicsEndImageContext();
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = UIScreen.mainScreen.scale;
+    rendererFormat.opaque = NO;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:newSize format:rendererFormat];
+    UIImage *newImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        [self drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
+    }];
 	return newImage;
 }
 

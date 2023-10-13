@@ -184,15 +184,18 @@
     CGFloat scale = self.scale;
     
     CGRect cropRect = CGRectMake(left.x / scale, top.y/scale, (right.x - left.x)/scale, (bottom.y - top.y) / scale);
-    UIGraphicsBeginImageContextWithOptions( cropRect.size,
-                                           NO,
-                                           scale);
-    [self drawAtPoint:CGPointMake(-cropRect.origin.x, -cropRect.origin.y)
-            blendMode:kCGBlendModeCopy
-                alpha:1.];
-    UIImage *croppedImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = scale;
+    rendererFormat.opaque = NO;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:cropRect.size format:rendererFormat];
+    UIImage *croppedImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        [self drawAtPoint:CGPointMake(-cropRect.origin.x, -cropRect.origin.y)
+                blendMode:kCGBlendModeCopy
+                    alpha:1.];
+    }];
     CFRelease(m_DataRef);
+    
     return croppedImage;
 }
 #pragma mark -

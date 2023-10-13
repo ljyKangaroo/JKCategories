@@ -33,21 +33,21 @@
         imageSize.width = ceil(imageSize.width);
         imageSize.height = ceil(imageSize.height);
         if(!CGSizeEqualToSize(CGSizeZero, imageSize)){
-            UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-            [ligature drawAtPoint:CGPointZero];
-            image = UIGraphicsGetImageFromCurrentImageContext();
-            UIGraphicsEndImageContext();
+            UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:imageSize];
+            image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+                [ligature drawAtPoint:CGPointZero];
+            }];
 
             if(tintColor){
-                UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-                CGContextRef context = UIGraphicsGetCurrentContext();
-                CGContextScaleCTM(context, 1, -1);
-                CGContextTranslateCTM(context, 0, -imageSize.height);
-                CGContextClipToMask(context, (CGRect){.size=imageSize}, [image CGImage]);
-                [tintColor setFill];
-                CGContextFillRect(context, (CGRect){.size=imageSize});
-                image = UIGraphicsGetImageFromCurrentImageContext();
-                UIGraphicsEndImageContext();
+                UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:imageSize];
+                image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+                    CGContextRef context = rendererContext.CGContext;
+                    CGContextScaleCTM(context, 1, -1);
+                    CGContextTranslateCTM(context, 0, -imageSize.height);
+                    CGContextClipToMask(context, (CGRect){.size=imageSize}, [image CGImage]);
+                    [tintColor setFill];
+                    CGContextFillRect(context, (CGRect){.size=imageSize});
+                }];
             }
 
             #pragma clang diagnostic push
@@ -111,27 +111,27 @@
         imageSize.width = size.width;
     }
 
-    UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-    CGFloat scale = MIN(imageSize.width/mediaRect.size.width, imageSize.height/mediaRect.size.height);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextScaleCTM(context, 1, -1);
-    CGContextTranslateCTM(context, 0, -imageSize.height);
-    CGContextScaleCTM(context, scale, scale);
-    CGContextDrawPDFPage(context, page1);
-    CGPDFDocumentRelease(pdf);
-    image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-
-    if(tintColor){
-        UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-        CGContextRef context = UIGraphicsGetCurrentContext();
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:imageSize];
+    image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+        CGFloat scale = MIN(imageSize.width/mediaRect.size.width, imageSize.height/mediaRect.size.height);
         CGContextScaleCTM(context, 1, -1);
         CGContextTranslateCTM(context, 0, -imageSize.height);
-        CGContextClipToMask(context, (CGRect){.size=imageSize}, [image CGImage]);
-        [tintColor setFill];
-        CGContextFillRect(context, (CGRect){.size=imageSize});
-        image = UIGraphicsGetImageFromCurrentImageContext();
-        UIGraphicsEndImageContext();
+        CGContextScaleCTM(context, scale, scale);
+        CGContextDrawPDFPage(context, page1);
+        CGPDFDocumentRelease(pdf);
+    }];
+
+    if(tintColor){
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:imageSize];
+        image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+            CGContextRef context = rendererContext.CGContext;
+            CGContextScaleCTM(context, 1, -1);
+            CGContextTranslateCTM(context, 0, -imageSize.height);
+            CGContextClipToMask(context, (CGRect){.size=imageSize}, [image CGImage]);
+            [tintColor setFill];
+            CGContextFillRect(context, (CGRect){.size=imageSize});
+        }];
     }
 
     return image;
