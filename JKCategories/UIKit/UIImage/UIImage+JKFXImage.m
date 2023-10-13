@@ -213,20 +213,7 @@
     static CGImageRef sharedMask = NULL;
     if (sharedMask == NULL)
     {
-        //create gradient mask
-//        UIGraphicsBeginImageContextWithOptions(CGSizeMake(1, 256), YES, 0.0);
-//        CGContextRef gradientContext = UIGraphicsGetCurrentContext();
-//        CGFloat colors[] = {0.0, 1.0, 1.0, 1.0};
-//        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
-//        CGGradientRef gradient = CGGradientCreateWithColorComponents(colorSpace, colors, NULL, 2);
-//        CGPoint gradientStartPoint = CGPointMake(0, 0);
-//        CGPoint gradientEndPoint = CGPointMake(0, 256);
-//        CGContextDrawLinearGradient(gradientContext, gradient, gradientStartPoint,
-//                                    gradientEndPoint, kCGGradientDrawsAfterEndLocation);
-//        sharedMask = CGBitmapContextCreateImage(gradientContext);
-//        CGGradientRelease(gradient);
-//        CGColorSpaceRelease(colorSpace);
-//        UIGraphicsEndImageContext();
+
         UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
         rendererFormat.scale = 0.0;
         rendererFormat.opaque = YES;
